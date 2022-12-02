@@ -1,0 +1,3 @@
+out/*
+metastore_db 
+*.log
