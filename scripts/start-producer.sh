@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./write-events.sh | /usr/local/kafka/bin/kafka-console-producer.sh --topic rilevamenti-targa --bootstrap-server localhost:9092
+./write-events.sh | $KAFKA_PATH/bin/kafka-console-producer.sh --topic rilevamenti-targa --bootstrap-server localhost:9092

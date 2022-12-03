@@ -1,6 +1,6 @@
 #!/bin/bash
 
-fname="/home/rfabiux/data/feb2016/01.02.2016_cleaned.csv"
+fname="/home/rfabiux/data/feb2016/01.02.2016.csv"
 day="2016-02-01"
 header=1
 day_regex='[0-9]{1,4}-[0-9]{1,2}-[0-9]{1,2}'

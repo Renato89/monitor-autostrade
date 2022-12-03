@@ -5,8 +5,8 @@
 # non terminano e il comando && aspetta la terminazione 
 # di quello precedente.
 echo "Starting Zookeeper";
-nohup ./start-zookeeper.sh  & sleep 5 && \
+nohup ./start-zookeeper.sh  & sleep 5 & \
 echo "Starting Kafka";
-nohup ./start-kafka.sh & sleep 10 && \
+nohup ./start-kafka.sh & sleep 10 & \
 echo "Sending events";
 nohup ./start-producer.sh 
