@@ -74,7 +74,6 @@ df_tratti = spark.createDataFrame(data=tratti, schema=tratti_schema).cache()
 #                       si trova
 ultimi_avvistamenti = (
     dfstream.join(df_tratti, (dfstream.varco == df_tratti.ingresso) | (dfstream.varco == df_tratti.uscita), 'left')
-    # .groupBy(window(dfstream.timestamp,  "10 minutes", "5 minutes") , \
     .groupBy(\
         'targa', 'ingresso', 'uscita') \
     .agg(
