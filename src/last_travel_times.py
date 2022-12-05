@@ -79,18 +79,18 @@ df_tratti = spark.createDataFrame(data=tratti, schema=tratti_schema).cache()
 
 df_speed = dfstream \
     .join(df_tratti, (dfstream.ingresso == df_tratti.ingresso ), 'left') \
-     .filter(col('avvistamenti') == 2) \
-     .groupBy(dfstream.targa) \
-     .agg(
-          last('arrivo').alias('arrivo'),
-          last('partenza').alias('partenza'),
-          last('lunghezza').alias('lunghezza'),
-          last(dfstream.ingresso).alias('ingresso'),
-          last(dfstream.uscita).alias('uscita')
-     ) \
-     .withColumn('velocità', \
-     rint(((col('lunghezza') * 1000) / (unix_timestamp(col('arrivo')) - unix_timestamp(col('partenza')))) * 3.6) ) \
-     .select('targa', col('arrivo').alias('timestamp'), 'ingresso', 'uscita', 'velocità')
+    .filter(col('avvistamenti') == 2) \
+    .dropDuplicates(["targa", "ingresso", "uscita", "partenza", "arrivo"]) \
+    .groupBy(dfstream.targa) \
+    .agg(
+        last('arrivo').alias('arrivo'),
+        last('partenza').alias('partenza'),
+        last('lunghezza').alias('lunghezza'),
+        last(dfstream.ingresso).alias('ingresso'),
+        last(dfstream.uscita).alias('uscita')
+    ) \
+    .withColumn('velocità', rint(((col('lunghezza') * 1000) / (unix_timestamp(col('arrivo')) - unix_timestamp(col('partenza')))) * 3.6) ) \
+    .select('targa', col('arrivo').alias('timestamp'), 'ingresso', 'uscita', 'velocità')
 
 
 
