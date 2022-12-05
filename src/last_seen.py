@@ -69,12 +69,11 @@ tratti_schema = StructType(
 df_tratti = spark.createDataFrame(data=tratti, schema=tratti_schema).cache()
 
 
-# ultimi avvistamenti:  i record vengono ordinati per targa e viene mantenuto
-#                       solo l'ultimo timestamp e tratto autostradale in cui
-#                       si trova
+# ultimi avvistamenti:  per ogni tratto si cercano le targhe che sono avvistate sia in entrata che in uscita,
+#                       i record con questa caratteristica avranno conteggio 2
 ultimi_avvistamenti = (
     dfstream.join(df_tratti, (dfstream.varco == df_tratti.ingresso) | (dfstream.varco == df_tratti.uscita), 'left')
-    .groupBy(\
+    .groupBy( window('timestamp', "10 minutes", "5 minutes"),  \
         'targa', 'ingresso', 'uscita') \
     .agg(
         first('timestamp').alias('partenza'), 
@@ -82,7 +81,8 @@ ultimi_avvistamenti = (
         count('timestamp').alias('avvistamenti')
     )
 )
-
+# viene usata una finestra temporale per evitare conteggi superiori a 2
+# i conteggi a 1 vengono filtrati successivamente dai processi successivi
 
 
 def foreach_batch_id(df, epoch_id):
