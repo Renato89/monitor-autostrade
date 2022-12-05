@@ -73,7 +73,8 @@ df_tratti = spark.createDataFrame(data=tratti, schema=tratti_schema).cache()
 #                       i record con questa caratteristica avranno conteggio 2
 ultimi_avvistamenti = (
     dfstream.join(df_tratti, (dfstream.varco == df_tratti.ingresso) | (dfstream.varco == df_tratti.uscita), 'left')
-    .groupBy( window('timestamp', "10 minutes", "5 minutes"),  \
+    .withWatermark("timestamp", "20 minutes") \
+    .groupBy( window('timestamp', "20 minutes", "10 minutes"),  \
         'targa', 'ingresso', 'uscita') \
     .agg(
         first('timestamp').alias('partenza'), 
