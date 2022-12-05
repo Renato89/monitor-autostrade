@@ -18,20 +18,24 @@ from pyspark.sql.functions import (
     sum,
     unix_timestamp,
     window,
+    avg,
+    rint
 )
 
 spark = SparkSession.builder.appName("LastSeen").getOrCreate()
+
+spark.sparkContext.setLogLevel('WARN')
 
 # Stream
 dfstream = (
     spark.readStream.format("kafka")
     .option("kafka.bootstrap.servers", "localhost:9092")
-    .option("subscribe", "rilevamenti-targa")
+    .option("subscribe", "ultimi-avvistamenti")
     .load()
 )
 
 options = {"sep": ","}
-schema = "targa INT, varco INT, corsia DOUBLE, timestamp TIMESTAMP, nazione STRING"
+schema = "targa INT, ingresso INT, uscita INT, partenza TIMESTAMP, arrivo TIMESTAMP, avvistamenti INT"
 
 dfstream = (
     dfstream.selectExpr("CAST(value AS STRING)")
@@ -41,100 +45,77 @@ dfstream = (
 
 # Immette i tratti autostradali
 tratti = [
-    (1, 27, 9, 8.48),
-    (2, 9, 26, 17.42),
-    (3, 26, 10, 6.0),
-    (4, 10, 18, 12.3),
-    (5, 18, 23, 14.0),
-    (6, 23, 15, 17.6),
-    (7, 15, 5, 7.7),
-    (8, 5, 8, 10.9),
-    (9, 8, 3, 6.9),
-    (10, 3, 13, 9.8),
-    (11, 22, 1, 10.6),
-    (12, 1, 12, 10.9),
-    (13, 12, 25, 7.7),
-    (14, 25, 20, 17.7),
-    (15, 20, 2, 13.8),
-    (16, 2, 16, 14.1),
-    (17, 16, 4, 14.0),
-    (18, 4, 21, 25.7),
+    (27, 9, 8.48),
+    (9, 26, 17.42),
+    (26, 10, 6.0),
+    (10, 18, 12.3),
+    (18, 23, 14.0),
+    (23, 15, 17.6),
+    (15, 5, 7.7),
+    (5, 8, 10.9),
+    (8, 3, 6.9),
+    (3, 13, 9.8),
+    (22, 1, 10.6),
+    (1, 12, 10.9),
+    (12, 25, 7.7),
+    (25, 20, 17.7),
+    (20, 2, 13.8),
+    (2, 16, 14.1),
+    (16, 4, 14.0),
+    (4, 21, 25.7),
 ]
 
 tratti_schema = StructType(
     [
-        StructField("tratto", IntegerType()),
         StructField("ingresso", IntegerType()),
         StructField("uscita", IntegerType()),
-        StructField("lunghezza", DoubleType()),
+        StructField("lunghezza", DoubleType())
     ]
 )
 
 df_tratti = spark.createDataFrame(data=tratti, schema=tratti_schema).cache()
 
+# Velocità media per targa
 
-# Tempi di percorrenza e velocità
-# partizione_per_targa = Window.partitionBy("targa").orderBy("timestamp")
-
-tempi_di_percorrenza = (
-    dfstream.join(
-        df_tratti,
-        [(dfstream.varco == df_tratti.ingresso) | (dfstream.varco == df_tratti.uscita)],
-        "inner",
-    )
-    .select("targa", "tratto", "timestamp", "lunghezza")
-    .groupBy("targa", "tratto")
+df_average = dfstream \
+    .join(df_tratti, (dfstream.ingresso == df_tratti.ingresso ), 'left') \
+    .filter(col('avvistamenti') == 2) \
+    .dropDuplicates(["targa", "ingresso", "uscita", "partenza", "arrivo"]) \
+    .withColumn('velocità', rint(( (col('lunghezza') * 1000) / (unix_timestamp(col('arrivo')) - unix_timestamp(col('partenza')))) * 3.6)) \
+    .groupBy('targa') \
     .agg(
-        last("timestamp"),
-        first("timestamp"),
-        first("lunghezza").alias("lunghezza"),
-    )
-    .withColumn(
-        "percorrenza",
-        unix_timestamp("last(timestamp)") - unix_timestamp("first(timestamp)"),
-    )
-    .where(col("percorrenza") > 0)
-    .where(col("timestamp") > col("last(timestamp)") - expr("INTERVAL 2 minutes"))
-    .withColumn("velocità", (col("lunghezza") / col("percorrenza")) * 3600)
-    .select(
-        "targa", "tratto", "lunghezza", "last(timestamp)", "percorrenza", "velocità"
-    )
-)
+        last(dfstream.ingresso).alias('ingresso'),
+        last(dfstream.uscita).alias('uscita'),
+        avg('velocità').alias('velocità_media')
+    ) \
+    .select('targa', 'ingresso', 'uscita', 'velocità_media')
 
 
 def foreach_batch_id(df, epoch_id):
     df.withColumn("key", lit(str(epoch_id))).write.format("kafka").option(
         "kafka.bootstrap.servers", "localhost:9092"
-    ).option("topic", "tempi-di-percorrenza").save()
+    ).option("topic", "velocita-media").save()
     pass
 
 
 # Output in Kafka
 print("\n\n\nStarting...\n\n\n")
 query = (
-    tempi_di_percorrenza.select(
+    df_average.select(
         concat(
-            "targa",
-            lit(","),
-            "tratto",
-            lit(","),
-            "lunghezza",
-            lit(","),
-            "last(timestamp)",
-            lit(","),
-            "percorrenza",
-            lit(","),
-            "velocità",
+            "targa", lit(","),
+            "ingresso", lit(","),
+            "uscita", lit(","),
+            "velocità_media"
         ).alias("value")
     )
     .writeStream.foreachBatch(foreach_batch_id)
-    .trigger(processingTime="5 seconds")
     .outputMode("update")
     .start()
 )
 
 # Test
-""" query_console = ultimi_avvistamenti\
+""" query = df_average\
     .select(concat(
         "targa", lit(","),
         "timestamp", lit(","),
