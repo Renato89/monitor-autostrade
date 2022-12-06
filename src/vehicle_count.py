@@ -81,10 +81,12 @@ df_tratti = spark.createDataFrame(data=tratti, schema=tratti_schema).cache()
 
 
 df_count = dfstream \
-    .join(df_tratti, (dfstream.ingresso == df_tratti.ingresso & dfstream.partenza), 'left') \
+    .join(df_tratti, (dfstream.ingresso == df_tratti.ingresso), 'left') \
+    .withWatermark("arrivo", "20 minutes") \
     .dropDuplicates(["targa", "ingresso", "uscita", "partenza", "arrivo"]) \
     .withColumn('presenza', when(col('avvistamenti')==2, -1).otherwise(1)) \
-    .groupBy(dfstream.ingresso, dfstream.uscita) \
+    .groupBy(window('arrivo', "20 minutes", "10 minutes"), \
+        dfstream.ingresso, dfstream.uscita) \
     .sum('presenza')
 
 
