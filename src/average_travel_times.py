@@ -19,7 +19,8 @@ from pyspark.sql.functions import (
     unix_timestamp,
     window,
     avg,
-    rint
+    rint,
+    current_timestamp
 )
 
 spark = SparkSession.builder.appName("LastSeen").getOrCreate()
@@ -101,12 +102,15 @@ def foreach_batch_id(df, epoch_id):
 # Output in Kafka
 print("\n\n\nStarting...\n\n\n")
 query = (
-    df_average.select(
+    df_average
+    .withColumn("process_timestamp", current_timestamp()) \
+    .select(
         concat(
             "targa", lit(","),
             "ingresso", lit(","),
             "uscita", lit(","),
-            "velocità_media"
+            "velocità_media", lit(","),
+            "process_timestamp"
         ).alias("value")
     )
     .writeStream.foreachBatch(foreach_batch_id)

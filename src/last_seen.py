@@ -11,7 +11,8 @@ from pyspark.sql.functions import (
     first,
     last,
     struct,
-    window
+    window,
+    current_timestamp
 )
 
 spark = SparkSession.builder.appName("LastSeen").getOrCreate()
@@ -98,14 +99,17 @@ def foreach_batch_id(df, epoch_id):
 # Output in Kafka
 print("\n\n\nStarting...\n\n\n")
 query = (
-    ultimi_avvistamenti.select(
+    ultimi_avvistamenti
+    .withColumn("process_timestamp", current_timestamp()) \
+    .select(
         concat(
             "targa", lit(","),
             "ingresso", lit(","),
             "uscita", lit(","),
             "partenza", lit(","),
             "arrivo", lit(","),
-            "avvistamenti"
+            "avvistamenti", lit(","),
+            "process_timestamp"
         ).alias("value")
     )
     .writeStream.foreachBatch(foreach_batch_id)

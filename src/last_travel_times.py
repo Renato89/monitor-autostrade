@@ -19,6 +19,7 @@ from pyspark.sql.functions import (
     sum,
     unix_timestamp,
     window,
+    current_timestamp
 )
 
 spark = SparkSession.builder.appName("LastTravelTimes").getOrCreate()
@@ -105,13 +106,16 @@ def foreach_batch_id(df, epoch_id):
 # Output in Kafka
 print("\n\n\nStarting...\n\n\n")
 query = (
-    df_speed.select(
+    df_speed
+    .withColumn("process_timestamp", current_timestamp()) \
+    .select(
         concat(
             "targa", lit(","),
             "timestamp", lit(","),
             "ingresso", lit(","),
             "uscita", lit(","),
-            "velocità",
+            "velocità", lit(","),
+            "process_timestamp"
         ).alias("value")
     )
     .writeStream.foreachBatch(foreach_batch_id)

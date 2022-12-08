@@ -21,7 +21,8 @@ from pyspark.sql.functions import (
     avg,
     rint,
     when,
-    count
+    count,
+    current_timestamp
 )
 
 
@@ -100,11 +101,14 @@ def foreach_batch_id(df, epoch_id):
 # Output in Kafka
 print("\n\n\nStarting...\n\n\n")
 query = (
-    df_count.select(
+    df_count
+    .withColumn("process_timestamp", current_timestamp()) \
+    .select(
         concat(
             "ingresso", lit(","),
             "uscita", lit(","),
-            "sum(presenza)"
+            "sum(presenza)", lit(","),
+            "process_timestamp"
         ).alias("value")
     )
     .writeStream.foreachBatch(foreach_batch_id)
