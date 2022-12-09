@@ -19,7 +19,8 @@ from pyspark.sql.functions import (
     sum,
     unix_timestamp,
     window,
-    current_timestamp
+    current_timestamp,
+    avg
 )
 
 spark = SparkSession.builder.appName("LastTravelTimes").getOrCreate()
@@ -90,11 +91,9 @@ df_speed = dfstream \
         last(dfstream.ingresso).alias('ingresso'),
         last(dfstream.uscita).alias('uscita')
     ) \
+    .withColumn('percorrenza', col('arrivo') - col('partenza')) \
     .withColumn('velocità', rint(((col('lunghezza') * 1000) / (unix_timestamp(col('arrivo')) - unix_timestamp(col('partenza')))) * 3.6) ) \
-    .select('targa', col('arrivo').alias('timestamp'), 'ingresso', 'uscita', 'velocità')
-
-
-
+    .select('targa', col('arrivo').alias('timestamp'), 'ingresso', 'uscita', 'percorrenza', 'velocità')
 
 def foreach_batch_id(df, epoch_id):
     df.withColumn("key", lit(str(epoch_id))).write.format("kafka").option(
@@ -107,15 +106,16 @@ def foreach_batch_id(df, epoch_id):
 print("\n\n\nStarting...\n\n\n")
 query = (
     df_speed
-    .withColumn("process_timestamp", current_timestamp()) \
+    .withColumn("process_time", current_timestamp() - col("timestamp")) \
     .select(
         concat(
             "targa", lit(","),
             "timestamp", lit(","),
             "ingresso", lit(","),
             "uscita", lit(","),
+            "percorrenza", lit(","),
             "velocità", lit(","),
-            "process_timestamp"
+            "process_time"
         ).alias("value")
     )
     .writeStream.foreachBatch(foreach_batch_id)
