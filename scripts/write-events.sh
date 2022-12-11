@@ -28,7 +28,7 @@ while read -r line; do
         fi
         # substitute the old timestamp with current one
         comp_date_regex='[0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}'
-        curr_timestamp=$(date +"%T")
+        curr_timestamp=$(date +"%Y-%m-%d %T")
         [[ $line =~ $comp_date_regex ]]
         # substitution
         line=${line/$BASH_REMATCH/$curr_timestamp}

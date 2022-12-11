@@ -69,13 +69,13 @@ def foreach_batch_id(df, epoch_id):
 print("\n\n\nStarting...\n\n\n")
 query = (
     df_count
-    .withColumn("process_time", current_timestamp() - col("timestamp")) \
+    .withColumn("timestamp", current_timestamp()) \
     .select(
         concat(
             "ingresso", lit(","),
             "uscita", lit(","),
             "sum(presenza)", lit(","),
-            "process_time"
+            "timestamp"
         ).alias("value")
     )
     .writeStream.foreachBatch(foreach_batch_id)
