@@ -76,7 +76,7 @@ ultimi_avvistamenti = (
     dfstream.join(df_tratti, (dfstream.varco == df_tratti.ingresso) | (dfstream.varco == df_tratti.uscita), 'left')
     .withWatermark("timestamp", "20 minutes") \
     .groupBy( window('timestamp', "20 minutes", "10 minutes"),  \
-        'targa', 'ingresso', 'uscita') \
+        'targa', 'ingresso', 'lunghezza', 'uscita') \
     .agg(
         first('timestamp').alias('partenza'), 
         last('timestamp').alias('arrivo'),
@@ -100,16 +100,15 @@ def foreach_batch_id(df, epoch_id):
 print("\n\n\nStarting...\n\n\n")
 query = (
     ultimi_avvistamenti
-    .withColumn("process_timestamp", current_timestamp()) \
     .select(
         concat(
             "targa", lit(","),
             "ingresso", lit(","),
             "uscita", lit(","),
+            "lunghezza", lit(","),
             "partenza", lit(","),
             "arrivo", lit(","),
-            "avvistamenti", lit(","),
-            "process_timestamp"
+            "avvistamenti"
         ).alias("value")
     )
     .writeStream.foreachBatch(foreach_batch_id)
