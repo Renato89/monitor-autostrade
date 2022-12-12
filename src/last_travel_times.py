@@ -46,7 +46,7 @@ df_speed = dfstream \
         last(dfstream.ingresso).alias('ingresso'),
         last(dfstream.uscita).alias('uscita')
     ) \
-    .withColumn('percorrenza', col('arrivo') - col('partenza')) \
+    .withColumn('percorrenza', unix_timestamp(col('arrivo')) - unix_timestamp(col('partenza'))) \
     .withColumn('velocità', rint(((col('lunghezza') * 1000) / (unix_timestamp(col('arrivo')) - unix_timestamp(col('partenza')))) * 3.6) ) \
     .select('targa', col('arrivo').alias('timestamp'), 'ingresso', 'uscita', 'percorrenza', 'velocità')
 
@@ -61,7 +61,7 @@ def foreach_batch_id(df, epoch_id):
 print("\n\n\nStarting...\n\n\n")
 query = (
     df_speed
-    .withColumn("process_time", current_timestamp() - col("timestamp")) \
+    .withColumn("process_time", unix_timestamp(current_timestamp()) - unix_timestamp(col("timestamp"))) \
     .select(
         concat(
             "targa", lit(","),
